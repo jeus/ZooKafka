@@ -27,7 +27,7 @@ public class Test1 implements Watcher, Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(Test1.class);
     private volatile boolean expired = false;
     private volatile boolean connected = false;
-    private String hostInfo = "172.17.0.1:2181";
+    private String hostInfo = "172.17.0.8:2181";
     ZooKeeper zk;
 
     public Test1() {
@@ -40,14 +40,17 @@ public class Test1 implements Watcher, Closeable {
     void startZK() throws IOException {
         System.out.println("HOST INFORMATION:" + hostInfo);
         zk = new ZooKeeper(hostInfo, 15000, this);
+        System.out.println(zk.getState());
+        System.out.println(zk.getState().name());
     }
 
     boolean isConnected() {
         return connected;
     }
 
-    public void testCreate() {
-        createParent("/test1", new byte[0]);
+    public void testCreate(Object path) {
+        String newZnode = path == null ? "/test1" : (String) path;
+        createParent(newZnode, new byte[0]);
 //        createParent("/assign", new byte[0]);
 //        createParent("/tasks", new byte[0]);
 //        createParent("/status", new byte[0]);
@@ -60,9 +63,14 @@ public class Test1 implements Watcher, Closeable {
                 CreateMode.PERSISTENT,
                 createParentCallback,
                 data);
+        System.out.println("CALLBACK IS:" + createParentCallback.toString());
     }
     AsyncCallback.StringCallback createParentCallback = new AsyncCallback.StringCallback() {
         public void processResult(int rc, String path, Object ctx, String name) {
+            System.out.println("Callback name:" + name);
+            System.out.println("Callback object :" + ctx.toString());
+            System.out.println("Callback path:" + path);
+            System.out.println("Callback rc:" + rc);
             switch (KeeperException.Code.get(rc)) {
                 case CONNECTIONLOSS:
                     /*
@@ -105,17 +113,19 @@ public class Test1 implements Watcher, Closeable {
         while (!test1.isConnected()) {
             Thread.sleep(100);
         }
-        test1.testCreate();
-        
+        test1.testCreate("/JeusTest");
+
         while (!test1.isExpired()) {
             Thread.sleep(1000);
         }
     }
 
-    boolean isExpired() throws KeeperException, InterruptedException {
-        Stat stat = new Stat();
-        byte data[] = zk.getData("/", false, stat);
-        System.out.println(data.length);
+    boolean isExpired() {
+//        System.out.println("Expire is:"+expired);
+//        System.out.println("State IsAlive:"+zk.getState().isAlive());
+//        System.out.println("State Is Connected:"+zk.getState().isConnected());
+//        System.out.println("State name:"+zk.getState().name());
+//        System.out.println("State toString:"+zk.getState().toString());
         return expired;
     }
 

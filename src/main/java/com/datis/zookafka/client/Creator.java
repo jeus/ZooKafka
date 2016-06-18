@@ -5,16 +5,38 @@
  */
 package com.datis.zookafka.client;
 
+import java.io.Closeable;
+import java.io.IOException;
+import org.apache.zookeeper.AsyncCallback;
+import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.ZooDefs;
+import org.apache.zookeeper.ZooKeeper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  *
  * @author jeus
  */
-public class Creator extends javax.swing.JFrame {
+public class Creator extends javax.swing.JFrame implements org.apache.zookeeper.Watcher, Closeable {
+
+    private static final Logger LOG = LoggerFactory.getLogger(Test1.class);
+    private volatile boolean expired = false;
+    private volatile boolean connected = false;
+    private String hostInfo = "172.17.0.8:2181";
+    ZooKeeper zk;
 
     /**
      * Creates new form Creator
      */
     public Creator() {
+        initComponents();
+    }
+
+    public Creator(String hostInfo) {
+        this.hostInfo = hostInfo;
         initComponents();
     }
 
@@ -42,6 +64,11 @@ public class Creator extends javax.swing.JFrame {
         jRadioButton2.setText("Persistent");
 
         jButton1.setText("Add");
+        jButton1.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jButton1ActionPerformed(evt);
+            }
+        });
 
         jTextArea1.setColumns(20);
         jTextArea1.setRows(5);
@@ -89,10 +116,21 @@ public class Creator extends javax.swing.JFrame {
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
+    private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_jButton1ActionPerformed
+
+    void startZK() throws IOException {
+        System.out.println("HOST INFORMATION:" + hostInfo);
+        zk = new ZooKeeper(hostInfo, 15000, this);
+        System.out.println(zk.getState());
+        System.out.println(zk.getState().name());
+    }
+
     /**
      * @param args the command line arguments
      */
-    public static void main(String args[]) {
+    public static void main(String args[]) throws Exception {
         /* Set the Nimbus look and feel */
         //<editor-fold defaultstate="collapsed" desc=" Look and feel setting code (optional) ">
         /* If Nimbus (introduced in Java SE 6) is not available, stay with the default look and feel.
@@ -122,8 +160,119 @@ public class Creator extends javax.swing.JFrame {
                 new Creator().setVisible(true);
             }
         });
+
+        Creator test1;
+        if (args.length == 1) {
+            System.out.println("Has Input argument:" + args[0]);
+            test1 = new Creator(args[0]);
+            test1.startZK();
+        } else {
+            System.out.println("not input argument");
+            test1 = new Creator();
+        }
+
+        test1.startZK();
+
+        while (!test1.isConnected()) {
+            Thread.sleep(100);
+        }
+        test1.testCreate("/JeusTest");
+
+        while (!test1.isExpired()) {
+            Thread.sleep(1000);
+        }
     }
 
+    boolean isExpired() {
+//        System.out.println("Expire is:"+expired);
+//        System.out.println("State IsAlive:"+zk.getState().isAlive());
+//        System.out.println("State Is Connected:"+zk.getState().isConnected());
+//        System.out.println("State name:"+zk.getState().name());
+//        System.out.println("State toString:"+zk.getState().toString());
+        return expired;
+    }
+
+    boolean isConnected() {
+        return connected;
+    }
+
+    public void testCreate(Object path) {
+        String newZnode = path == null ? "/test1" : (String) path;
+        createParent(newZnode, new byte[0]);
+//        createParent("/assign", new byte[0]);
+//        createParent("/tasks", new byte[0]);
+//        createParent("/status", new byte[0]);
+    }
+
+    void createParent(String path, byte[] data) {
+        zk.create(path,
+                data,
+                ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                CreateMode.PERSISTENT,
+                createParentCallback,
+                data);
+        System.out.println("CALLBACK IS:" + createParentCallback.toString());
+    }
+    AsyncCallback.StringCallback createParentCallback = new AsyncCallback.StringCallback() {
+        public void processResult(int rc, String path, Object ctx, String name) {
+            System.out.println("Callback name:" + name);
+            System.out.println("Callback object :" + ctx.toString());
+            System.out.println("Callback path:" + path);
+            System.out.println("Callback rc:" + rc);
+            switch (KeeperException.Code.get(rc)) {
+                case CONNECTIONLOSS:
+                    /*
+                 * Try again. Note that registering again is not a problem.
+                 * If the znode has already been created, then we get a 
+                 * NODEEXISTS event back.
+                     */
+                    createParent(path, (byte[]) ctx);
+
+                    break;
+                case OK:
+                    System.out.println("PARENT CREATED");
+                    LOG.info("Parent created");
+
+                    break;
+                case NODEEXISTS:
+                    LOG.warn("Parent already registered: " + path);
+
+                    break;
+                default:
+                    LOG.error("Something went wrong: ",
+                            KeeperException.create(KeeperException.Code.get(rc), path));
+            }
+        }
+    };
+
+    @Override
+    public void process(WatchedEvent e) {
+        LOG.info("Processing event: " + e.toString());
+        if (e.getType() == Event.EventType.None) {
+            switch (e.getState()) {
+                case SyncConnected:
+                    System.out.println("Event SynConnected");
+                    connected = true;
+                    break;
+                case Disconnected:
+                    System.out.println("Event Disconnected");
+                    connected = false;
+                    break;
+                case Expired:
+                    System.out.println("Event Expired");
+                    expired = true;
+                    connected = false;
+                    LOG.error("Session expiration");
+                default:
+                    break;
+            }
+        }
+    }
+
+    @Override
+    public void close() throws IOException {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton jButton1;
     private javax.swing.JCheckBox jCheckBox1;
