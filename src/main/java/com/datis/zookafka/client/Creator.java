@@ -25,7 +25,7 @@ public class Creator extends javax.swing.JFrame implements org.apache.zookeeper.
     private static final Logger LOG = LoggerFactory.getLogger(Test1.class);
     private volatile boolean expired = false;
     private volatile boolean connected = false;
-    private String hostInfo = "172.17.0.8:2181";
+    private String hostInfo;
     ZooKeeper zk;
 
     /**
@@ -36,8 +36,8 @@ public class Creator extends javax.swing.JFrame implements org.apache.zookeeper.
     }
 
     public Creator(String hostInfo) {
+        System.out.println("=========================" + hostInfo);
         this.hostInfo = hostInfo;
-        initComponents();
     }
 
     /**
@@ -117,7 +117,10 @@ public class Creator extends javax.swing.JFrame implements org.apache.zookeeper.
     }// </editor-fold>//GEN-END:initComponents
 
     private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
-        // TODO add your handling code here:
+        System.out.println("***************************************");
+        String a = jTextField1.getText();
+        System.out.println("output of textfield:" + a);
+        testCreate(a);
     }//GEN-LAST:event_jButton1ActionPerformed
 
     void startZK() throws IOException {
@@ -168,7 +171,7 @@ public class Creator extends javax.swing.JFrame implements org.apache.zookeeper.
             test1.startZK();
         } else {
             System.out.println("not input argument");
-            test1 = new Creator();
+            test1 = new Creator("172.17.0.8:2181");
         }
 
         test1.startZK();
@@ -197,7 +200,8 @@ public class Creator extends javax.swing.JFrame implements org.apache.zookeeper.
     }
 
     public void testCreate(Object path) {
-        String newZnode = path == null ? "/test1" : (String) path;
+        String newZnode = (path == null ? "/test1" : (String) path);
+        System.out.println("NewZNODE IS:" + newZnode);
         createParent(newZnode, new byte[0]);
 //        createParent("/assign", new byte[0]);
 //        createParent("/tasks", new byte[0]);
@@ -227,7 +231,7 @@ public class Creator extends javax.swing.JFrame implements org.apache.zookeeper.
                  * NODEEXISTS event back.
                      */
                     createParent(path, (byte[]) ctx);
-
+                    System.out.println("*************#######");
                     break;
                 case OK:
                     System.out.println("PARENT CREATED");
